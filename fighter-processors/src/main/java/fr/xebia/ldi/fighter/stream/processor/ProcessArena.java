@@ -5,6 +5,7 @@ import org.apache.kafka.streams.processor.Processor;
 import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.processor.PunctuationType;
 import org.apache.kafka.streams.processor.To;
+import org.apache.kafka.streams.state.KeyValueIterator;
 import org.apache.kafka.streams.state.KeyValueStore;
 
 import java.time.Duration;
@@ -25,15 +26,24 @@ public class ProcessArena implements Processor<String, Arena> {
 
         this.arenaStore = (KeyValueStore) this.context.getStateStore("ARENA-STORE");
 
-        this.context.schedule(Duration.ofSeconds(3), PunctuationType.WALL_CLOCK_TIME, (timestamp) ->
-            this.arenaStore.all().forEachRemaining((arenaKeyValue) ->
+        this.context.schedule(Duration.ofSeconds(10), PunctuationType.WALL_CLOCK_TIME, (timestamp) -> {
+            KeyValueIterator<String, Arena> it = this.arenaStore.all();
+
+            it.forEachRemaining((arenaKeyValue) ->
                     this.context.forward(
                             String.format("(%tc)  %-15S :", timestamp, arenaKeyValue.value.getName()),
                             arenaKeyValue.value.getTerminals().toString(),
                             To.child("TERMINALS-COUNT")
                     )
-            )
-        );
+            );
+
+            try {
+                it.close();
+            } catch (Throwable ex) {
+                ex.printStackTrace();
+            }
+
+        });
     }
 
     @Override

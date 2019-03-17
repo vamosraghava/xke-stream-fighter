@@ -77,15 +77,15 @@ public class ProcessorAPI {
 
         arenaStoreBuilder.withLoggingDisabled();
 
-        Topology builder = new Topology();
+        Topology topology = new Topology();
 
-        builder.addGlobalStore(
+        topology.addGlobalStore(
                 arenaStoreBuilder, "GLOBAL-ARENAS",
                 Serdes.String().deserializer(), arenaSerde.deserializer(),
                 "ARENAS", "PROCESS-ARENA", ProcessGlobalArena::new);
 
 
-        builder.addSource(LATEST, "ROUNDS-SRC", new EventTimeExtractor(),
+        topology.addSource(LATEST, "ROUNDS-SRC", new EventTimeExtractor(),
                         Serdes.String().deserializer(), roundSerde.deserializer(), "ROUNDS")
 
                 .addProcessor("PROCESS-ROUND", ProcessRound::new, "ROUNDS-SRC")
@@ -101,7 +101,7 @@ public class ProcessorAPI {
                 .addStateStore(victoriesStoreBuilder, "PROCESS-VICTORY");
 
         // ~*~ presentation purpose only ~*~
-        builder
+        topology
                 .addSink("SINK", "RESULTS-PROC", keyAvroSerde.serializer(), valueAvroSerde.serializer(), "PROCESS-VICTORY")
 
                 .addSink("TERMINALS-COUNT", "EQUIPMENTS", Serdes.String().serializer(), Serdes.String().serializer(), "PROCESS-ARENA");
@@ -110,11 +110,11 @@ public class ProcessorAPI {
 
         Arrays.asList(
 
-                builder.describe().toString().split("\n")
+                topology.describe().toString().split("\n")
 
         ).forEach( node -> logger.info(node));
 
-        KafkaStreams kafkaStreams = new KafkaStreams(builder, JobConfig.properties(config));
+        KafkaStreams kafkaStreams = new KafkaStreams(topology, JobConfig.properties(config));
 
         delayProcessing(config.getLong("start-lag"));
 
